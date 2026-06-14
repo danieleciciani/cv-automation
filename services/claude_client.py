@@ -51,6 +51,9 @@ Return the adapted CV now:"""
     return _chat(prompt, max_tokens=4096)
 
 
+_LINKEDIN_LIMIT = 300
+
+
 def draft_linkedin_message(
     contact_name: str,
     job_title: str,
@@ -58,25 +61,36 @@ def draft_linkedin_message(
     job_description: str,
     base_cv: str,
 ) -> str:
-    prompt = f"""Write a concise, natural LinkedIn connection request message.
+    first_name = contact_name.split()[0]
 
-RULES:
-- Max 300 characters (LinkedIn limit for connection notes)
+    def _prompt(extra: str = "") -> str:
+        return f"""Write a LinkedIn connection request note.
+
+HARD LIMIT: the message MUST be under {_LINKEDIN_LIMIT} characters total — count every character including spaces.
 - First name only, no "Dear"
-- One specific reason you're reaching out (mention role/company)
-- End with a soft call to action (e.g. "happy to share my background")
-- Sound human, not like a template
-- No emojis
+- One specific reason you're reaching out (role + company)
+- Soft call to action at the end
+- Human tone, no emojis
+{extra}
+Contact first name: {first_name}
+Role: {job_title} at {company}
 
-Contact first name: {contact_name.split()[0]}
-Role I'm applying for: {job_title} at {company}
+My background (brief):
+{base_cv[:400]}
 
-My background summary (from CV):
-{base_cv[:800]}
+Write ONLY the message, nothing else:"""
 
-Job context:
-{job_description[:800]}
+    text = _chat(_prompt(), max_tokens=120)
 
-Write only the message text:"""
+    # Retry once with explicit character count if over limit
+    if len(text) > _LINKEDIN_LIMIT:
+        text = _chat(
+            _prompt(f"\nIMPORTANT: your previous attempt was {len(text)} chars. Try again, shorter.\n"),
+            max_tokens=100,
+        )
 
-    return _chat(prompt, max_tokens=200)
+    # Hard truncate at word boundary as last resort
+    if len(text) > _LINKEDIN_LIMIT:
+        text = text[:_LINKEDIN_LIMIT].rsplit(" ", 1)[0].rstrip(",.;:")
+
+    return text

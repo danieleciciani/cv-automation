@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m venv .venv)",
+      "Bash(.venv/bin/pip install *)",
+      "Bash(.venv/bin/python -c \"import fastapi, sqlalchemy, anthropic, docx, pydantic_settings; print\\('all imports OK'\\)\")",
+      "Bash(.venv/bin/python -c ' *)",
+      "Bash(ls /Users/cicianid/Projects/cv-automation/.venv/bin/python3)",
+      "Read(//opt/homebrew/Cellar/python@3.12/3.12.2_1/Frameworks/Python.framework/Versions/3.12/bin/**)",
+      "Bash(.venv/bin/python -c \"from services.claude_client import tailor_cv, draft_linkedin_message; print\\('OK'\\)\")",
+      "Bash(.venv/bin/python -c \"from main import app; print\\('app OK'\\)\")",
+      "Bash(curl -s http://localhost:8000/)",
+      "Bash(curl -s http://localhost:11434/api/tags)",
+      "Bash(curl -s http://localhost:8000/api/cv/base)",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s -X POST http://localhost:8000/api/cv/base -H 'Content-Type: application/json' -d '{\"content\": \"Mario Rossi\\\\nSenior Developer\\\\n10 anni esperienza Python\"}')",
+      "Bash(curl -s http://localhost:8000/api/jobs)",
+      "Bash(curl -s -X POST http://localhost:8000/api/jobs/search -H 'Content-Type: application/json' -d '{\"query\":\"python developer\",\"locations\":[\"Milano\"],\"num_pages\":1}')",
+      "Bash(curl -s 'https://jsearch.p.rapidapi.com/search?query=data+engineer&page=1&num_pages=1&country=it' -H 'x-rapidapi-host: jsearch.p.rapidapi.com' -H 'x-rapidapi-key: a87b80938cmshbaa4932f846c5e2p152d4djsn60413bf196c1')",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s -X POST http://localhost:8000/api/jobs/search -H 'Content-Type: application/json' -d '{\"query\":\"data engineer\",\"locations\":[\"Milano\"],\"country\":\"it\"}')",
+      "Bash(git init *)",
+      "Bash(git remote *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(lsof -ti:8000)",
+      "Bash(curl -s -X POST http://localhost:8000/api/jobs -H 'Content-Type: application/json' -d '{\"title\":\"Test Engineer\",\"company\":\"ACME\"}')"
+    ]
+  }
+}

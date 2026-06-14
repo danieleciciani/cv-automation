@@ -64,11 +64,24 @@ async def search_jobs(query: str, locations: list[str], num_pages: int = 1, coun
                 resp.raise_for_status()
                 data = resp.json()
                 for job in data.get("data", []):
+                    if not _city_matches(job, location):
+                        continue
                     parsed = _parse_job(job)
                     if english_only and not requires_english(parsed):
                         continue
                     results.append(parsed)
     return results
+
+
+def _city_matches(raw: dict, location: str) -> bool:
+    """Return True if the job's city roughly matches the requested location."""
+    if location.lower() == "remote":
+        return True
+    job_city = (raw.get("job_city") or "").lower().strip()
+    if not job_city:
+        return True  # no city data → keep (could be remote or unlisted)
+    loc = location.lower().strip()
+    return loc in job_city or job_city in loc
 
 
 def _parse_job(raw: dict) -> dict:

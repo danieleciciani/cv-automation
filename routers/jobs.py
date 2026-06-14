@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import Job
-from schemas import JobOut, JobStatusUpdate, JobSearchRequest
+from schemas import JobOut, JobStatusUpdate, JobSearchRequest, JobCreate
 from services.jsearch import search_jobs
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
@@ -32,6 +32,19 @@ async def search_and_save(req: JobSearchRequest, db: Session = Depends(get_db)):
         saved.append(job)
     saved.sort(key=lambda j: (-j.created_at.timestamp(), (j.company or "").lower()))
     return saved
+
+
+@router.post("", response_model=JobOut)
+def create_job_manual(body: JobCreate, db: Session = Depends(get_db)):
+    if body.source_url:
+        existing = db.query(Job).filter(Job.source_url == body.source_url).first()
+        if existing:
+            return existing
+    job = Job(**body.model_dump())
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    return job
 
 
 @router.get("", response_model=list[JobOut])
