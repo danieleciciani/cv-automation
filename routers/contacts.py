@@ -1,4 +1,3 @@
-import re
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -11,30 +10,6 @@ from services.google_dork import (
     build_linkedin_search_url,
     build_linkedin_direct_url,
 )
-
-
-def _sort_by_region(contacts: list, region: str | None) -> list:
-    """
-    Tier 1 — location matches region (A→Z by location)
-    Tier 2 — has location but no match (A→Z by location)
-    Tier 3 — no location (A→Z by name)
-    """
-    if not region:
-        return sorted(contacts, key=lambda c: (c.location is None, (c.location or "").lower()))
-
-    tokens = set(re.sub(r"[,/]", " ", region).lower().split())
-
-    def _rank(c):
-        loc = (c.location or "").lower()
-        loc_tokens = set(re.sub(r"[,/]", " ", loc).split())
-        match = bool(tokens & loc_tokens)
-        has_loc = bool(loc)
-        return (
-            0 if match else (1 if has_loc else 2),
-            loc if has_loc else (c.name or "").lower(),
-        )
-
-    return sorted(contacts, key=_rank)
 
 router = APIRouter(prefix="/api/contacts", tags=["contacts"])
 
@@ -59,10 +34,10 @@ def find_contacts(job_id: int, max_results: int = 8, force: bool = False, db: Se
 
     existing_contacts = db.query(Contact).filter(Contact.job_id == job_id).all()
     if existing_contacts and not force:
-        return _sort_by_region(existing_contacts, job.location)
+        return existing_contacts
 
     try:
-        raw = search_linkedin_contacts(job.company, region=job.location, max_results=max_results)
+        raw = search_linkedin_contacts(job.company, max_results=max_results)
     except Exception as e:
         raise HTTPException(502, f"Ricerca fallita: {e}")
 
@@ -76,7 +51,7 @@ def find_contacts(job_id: int, max_results: int = 8, force: bool = False, db: Se
         db.commit()
         db.refresh(contact)
         saved.append(contact)
-    return _sort_by_region(saved, job.location)
+    return saved
 
 
 @router.post("", response_model=ContactOut)

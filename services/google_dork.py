@@ -13,14 +13,10 @@ _LOCATION_RE = re.compile(r"Location:\s*([^·\n\|]{3,60})", re.IGNORECASE)
 def search_linkedin_contacts(company: str, region: str | None = None, max_results: int = 8) -> list[dict]:
     """
     Search LinkedIn profiles for HR/Talent people at the given company via DuckDuckGo.
-    Optionally biases results toward `region` (city/area).
-    Returns [{name, role, linkedin_url, location}], sorted by region match then A→Z.
+    Returns [{name, role, linkedin_url, location}], sorted A→Z by name.
     """
     roles_query = " OR ".join(f'"{r}"' for r in HR_ROLES[:4])
-    # Including the region in the query steers DDG toward local profiles
-    # and makes LinkedIn snippets more likely to include Location:
-    region_hint = f' "{region}"' if region else ""
-    query = f'site:linkedin.com/in "{company}"{region_hint} ({roles_query})'
+    query = f'site:linkedin.com/in "{company}" ({roles_query})'
 
     contacts = []
     with DDGS() as ddgs:
@@ -34,32 +30,7 @@ def search_linkedin_contacts(company: str, region: str | None = None, max_result
             if len(contacts) >= max_results:
                 break
 
-    return contacts
-
-
-def sort_contacts_by_region(contacts: list[dict], region: str | None) -> list[dict]:
-    """
-    Sort order:
-      1. Contacts whose location matches the region (A→Z by location)
-      2. Contacts with a location but no region match (A→Z by location)
-      3. Contacts with no location (A→Z by name)
-    """
-    if not region:
-        return sorted(contacts, key=lambda c: (c["location"] is None, (c["location"] or "").lower()))
-
-    region_tokens = set(re.sub(r"[,/]", " ", region).lower().split())
-
-    def _rank(c: dict) -> tuple:
-        loc = (c.get("location") or "").lower()
-        loc_tokens = set(re.sub(r"[,/]", " ", loc).split())
-        match = bool(region_tokens & loc_tokens)
-        has_loc = bool(loc)
-        return (
-            0 if match else (1 if has_loc else 2),  # tier
-            loc if has_loc else (c.get("name") or "").lower(),
-        )
-
-    return sorted(contacts, key=_rank)
+    return sorted(contacts, key=lambda c: (c.get("name") or "").lower())
 
 
 def _parse_title(title: str, company: str) -> tuple[str, str]:
