@@ -1,0 +1,37 @@
+# Ambiente virtuale
+.venv/
+venv/
+env/
+
+# Variabili d'ambiente (contiene API key!)
+.env
+.env.*
+!.env.example
+
+# Database locale (dati personali)
+*.db
+*.sqlite
+*.sqlite3
+
+# CV personale e generati
+cv_data/
+generated_cvs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

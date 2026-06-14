@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Job Hunter</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    .tab-active { @apply border-b-2 border-indigo-600 text-indigo-700 font-semibold; }
+    .status-badge { @apply text-xs px-2 py-0.5 rounded-full font-medium; }
+    pre { white-space: pre-wrap; word-break: break-word; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+
+<div class="max-w-5xl mx-auto px-4 py-6">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-indigo-700">Job Hunter</h1>
+    <span id="cvStatus" class="text-sm text-gray-400">checking CV...</span>
+  </div>
+
+  <!-- Tabs -->
+  <nav class="flex gap-6 border-b mb-6 text-sm text-gray-500">
+    <button onclick="switchTab('discover')" id="tab-discover" class="pb-2 tab-active">Discover</button>
+    <button onclick="switchTab('jobs')" id="tab-jobs" class="pb-2">My Jobs</button>
+    <button onclick="switchTab('cv')" id="tab-cv" class="pb-2">CV Tailoring</button>
+    <button onclick="switchTab('contacts')" id="tab-contacts" class="pb-2">Contacts</button>
+    <button onclick="switchTab('messages')" id="tab-messages" class="pb-2">Messages</button>
+    <button onclick="switchTab('settings')" id="tab-settings" class="pb-2">Base CV</button>
+  </nav>
+
+  <!-- ===== DISCOVER ===== -->
+  <div id="pane-discover">
+    <div class="bg-white rounded-xl shadow-sm p-5 mb-4">
+      <h2 class="text-base font-semibold mb-3">Search Jobs</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        <div class="sm:col-span-2">
+          <label class="text-xs text-gray-500 mb-1 block">Role / keywords</label>
+          <input id="searchQuery" type="text" placeholder="e.g. Data Engineer, Backend Python" class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+        </div>
+        <div>
+          <label class="text-xs text-gray-500 mb-1 block">Locations (comma-separated)</label>
+          <input id="searchLocations" type="text" placeholder="Milano, Roma, Remote" class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+        </div>
+        <div>
+          <label class="text-xs text-gray-500 mb-1 block">Country code</label>
+          <input id="searchCountry" type="text" value="it" placeholder="it" class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+        </div>
+      </div>
+      <div class="mt-3 flex items-center gap-3 flex-wrap">
+        <button onclick="searchJobs()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg">Search</button>
+        <label class="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer select-none">
+          <input type="checkbox" id="englishOnly" class="rounded" />
+          Solo offerte in inglese
+        </label>
+        <select id="sortMode" onchange="renderSearchResults(_lastSearchResults)" class="text-xs border rounded-lg px-2 py-1.5 text-gray-600 ml-auto">
+          <option value="date-az">Data ↓ poi A→Z</option>
+          <option value="date">Solo data ↓</option>
+          <option value="az">Solo A→Z</option>
+        </select>
+        <span id="searchSpinner" class="text-xs text-gray-400 hidden">Ricerca in corso...</span>
+      </div>
+    </div>
+    <div id="searchResults" class="space-y-3"></div>
+  </div>
+
+  <!-- ===== MY JOBS ===== -->
+  <div id="pane-jobs" class="hidden">
+    <div class="flex gap-2 mb-4 flex-wrap">
+      <button onclick="loadJobs()" class="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg">All</button>
+      <button onclick="loadJobs('discovered')" class="text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-lg">Discovered</button>
+      <button onclick="loadJobs('applied')" class="text-xs bg-purple-50 text-purple-700 hover:bg-purple-100 px-3 py-1.5 rounded-lg">Applied</button>
+      <button onclick="loadJobs('contacted')" class="text-xs bg-yellow-50 text-yellow-700 hover:bg-yellow-100 px-3 py-1.5 rounded-lg">Contacted</button>
+      <button onclick="loadJobs('reply')" class="text-xs bg-green-50 text-green-700 hover:bg-green-100 px-3 py-1.5 rounded-lg">Reply</button>
+      <button onclick="loadJobs('rejected')" class="text-xs bg-red-50 text-red-700 hover:bg-red-100 px-3 py-1.5 rounded-lg">Rejected</button>
+    </div>
+    <div id="jobsList" class="space-y-3"></div>
+  </div>
+
+  <!-- ===== CV TAILORING ===== -->
+  <div id="pane-cv" class="hidden">
+    <div class="bg-white rounded-xl shadow-sm p-5 mb-4">
+      <h2 class="text-base font-semibold mb-3">Generate Tailored CV</h2>
+      <div class="mb-3">
+        <label class="text-xs text-gray-500 mb-1 block">Select Job</label>
+        <select id="cvJobSelect" class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+          <option value="">-- select a job --</option>
+        </select>
+      </div>
+      <button onclick="generateCV()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg">Generate CV</button>
+      <span id="cvSpinner" class="text-xs text-gray-400 hidden ml-3">Claude is writing your CV...</span>
+    </div>
+    <div id="cvResult" class="space-y-3"></div>
+  </div>
+
+  <!-- ===== CONTACTS ===== -->
+  <div id="pane-contacts" class="hidden">
+    <div class="bg-white rounded-xl shadow-sm p-5 mb-4">
+      <h2 class="text-base font-semibold mb-3">Contatti HR</h2>
+      <div class="mb-3">
+        <label class="text-xs text-gray-500 mb-1 block">Seleziona Job</label>
+        <select id="contactJobSelect" class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+          <option value="">-- seleziona un job --</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-3 flex-wrap">
+        <button onclick="findContacts(false)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg">Cerca profili HR</button>
+        <button onclick="findContacts(true)" class="border border-indigo-300 text-indigo-600 hover:bg-indigo-50 text-sm px-4 py-2 rounded-lg">Aggiorna</button>
+        <button onclick="openGoogleSearch()" class="border border-gray-300 text-gray-600 hover:bg-gray-50 text-sm px-4 py-2 rounded-lg">Apri su Google ↗</button>
+        <button onclick="showAddContact()" class="border border-indigo-300 text-indigo-600 hover:bg-indigo-50 text-sm px-4 py-2 rounded-lg">Aggiungi manualmente</button>
+        <span id="contactSpinner" class="text-xs text-gray-400 hidden">Ricerca in corso...</span>
+      </div>
+
+      <!-- Manual add form -->
+      <div id="addContactForm" class="hidden mt-4 border rounded-lg p-4 bg-gray-50 space-y-3">
+        <p class="text-xs font-medium text-gray-600">Aggiungi contatto — persona o email aziendale</p>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">Nome completo</label>
+            <input id="newContactName" placeholder="es. Giulia Rossi" class="w-full border rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">Ruolo</label>
+            <input id="newContactRole" placeholder="es. HR Manager" class="w-full border rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">Email</label>
+            <input id="newContactEmail" type="email" placeholder="es. hr@azienda.com" class="w-full border rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">URL LinkedIn</label>
+            <input id="newContactUrl" placeholder="linkedin.com/in/..." class="w-full border rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">Prefisso</label>
+            <input id="newContactPrefix" placeholder="+39" class="w-full border rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">Numero di telefono</label>
+            <input id="newContactPhone" type="tel" placeholder="3391234567" class="w-full border rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div class="col-span-2">
+            <label class="text-xs text-gray-500 mb-1 block">Città / Zona</label>
+            <input id="newContactLocation" placeholder="es. Milano, Lombardia" class="w-full border rounded-lg px-3 py-2 text-sm" />
+          </div>
+        </div>
+        <button onclick="addContactManually()" class="w-full bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-2 rounded-lg">Salva contatto</button>
+      </div>
+    </div>
+    <div id="contactsList" class="space-y-3"></div>
+  </div>
+
+  <!-- ===== MESSAGES ===== -->
+  <div id="pane-messages" class="hidden">
+    <div class="bg-white rounded-xl shadow-sm p-5 mb-4">
+      <h2 class="text-base font-semibold mb-3">Draft LinkedIn Message</h2>
+      <div class="grid sm:grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="text-xs text-gray-500 mb-1 block">Select Job</label>
+          <select id="msgJobSelect" onchange="loadMsgContacts()" class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            <option value="">-- select a job --</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-gray-500 mb-1 block">Contact (optional)</label>
+          <select id="msgContactSelect" class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            <option value="">-- or type a name below --</option>
+          </select>
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="text-xs text-gray-500 mb-1 block">Contact name (if not in list)</label>
+        <input id="msgContactName" type="text" placeholder="e.g. Giulia" class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+      </div>
+      <button onclick="generateMessage()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg">Generate Message</button>
+      <span id="msgSpinner" class="text-xs text-gray-400 hidden ml-3">Claude is drafting...</span>
+    </div>
+    <div id="msgResult" class="space-y-3"></div>
+  </div>
+
+  <!-- ===== SETTINGS (Base CV) ===== -->
+  <div id="pane-settings" class="hidden">
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h2 class="text-base font-semibold mb-1">Your Base CV</h2>
+      <p class="text-xs text-gray-500 mb-3">Paste your full CV as plain text. Claude will use this as the base when tailoring for each job.</p>
+      <textarea id="baseCvText" rows="25" class="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-300" placeholder="Paste your full CV here..."></textarea>
+      <div class="mt-3 flex items-center gap-3">
+        <button onclick="saveBaseCV()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg">Save CV</button>
+        <span id="cvSaveMsg" class="text-xs text-green-600 hidden">Saved!</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API = '';
+
+// ===== TAB ROUTING =====
+const TABS = ['discover', 'jobs', 'cv', 'contacts', 'messages', 'settings'];
+let currentTab = 'discover';
+
+function switchTab(tab) {
+  TABS.forEach(t => {
+    document.getElementById(`pane-${t}`).classList.toggle('hidden', t !== tab);
+    document.getElementById(`tab-${t}`).classList.toggle('tab-active', t === tab);
+  });
+  currentTab = tab;
+  if (tab === 'jobs') loadJobs();
+  if (tab === 'cv') { loadJobsIntoSelect('cvJobSelect'); }
+  if (tab === 'contacts') loadJobsIntoSelect('contactJobSelect');
+  if (tab === 'messages') { loadJobsIntoSelect('msgJobSelect'); }
+  if (tab === 'settings') loadBaseCV();
+}
+
+// ===== UTILS =====
+const STATUS_COLORS = {
+  discovered: 'bg-blue-100 text-blue-700',
+  applied: 'bg-purple-100 text-purple-700',
+  contacted: 'bg-yellow-100 text-yellow-700',
+  reply: 'bg-green-100 text-green-700',
+  rejected: 'bg-red-100 text-red-700',
+};
+
+function statusBadge(s) {
+  return `<span class="status-badge ${STATUS_COLORS[s] || 'bg-gray-100 text-gray-600'}">${s}</span>`;
+}
+
+function toast(msg, ok = true) {
+  const el = document.createElement('div');
+  el.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg text-sm text-white shadow-lg z-50 ${ok ? 'bg-green-600' : 'bg-red-500'}`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const res = await fetch(API + path, opts);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || res.statusText);
+  }
+  return res.json();
+}
+
+// ===== BASE CV STATUS =====
+async function checkCVStatus() {
+  try {
+    const data = await api('GET', '/api/cv/base');
+    const el = document.getElementById('cvStatus');
+    el.textContent = data.content ? `Base CV: ${data.content.length} chars` : 'No base CV — add one in Base CV tab';
+    el.className = data.content ? 'text-sm text-green-600' : 'text-sm text-red-500';
+  } catch (e) {}
+}
+
+// ===== DISCOVER =====
+async function searchJobs() {
+  const query = document.getElementById('searchQuery').value.trim();
+  const locs = document.getElementById('searchLocations').value.split(',').map(s => s.trim()).filter(Boolean);
+  const country = document.getElementById('searchCountry').value.trim() || 'it';
+  const english_only = document.getElementById('englishOnly').checked;
+  if (!query || !locs.length) { toast('Inserisci ruolo e almeno una città', false); return; }
+
+  document.getElementById('searchSpinner').classList.remove('hidden');
+  document.getElementById('searchResults').innerHTML = '';
+  try {
+    const jobs = await api('POST', '/api/jobs/search', { query, locations: locs, num_pages: 1, country, english_only });
+    renderSearchResults(jobs);
+  } catch (e) {
+    toast(e.message, false);
+  } finally {
+    document.getElementById('searchSpinner').classList.add('hidden');
+  }
+}
+
+let _lastSearchResults = [];
+
+function sortJobs(jobs, mode) {
+  const copy = [...jobs];
+  if (mode === 'date') copy.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  if (mode === 'az')   copy.sort((a, b) => (a.company || '').localeCompare(b.company || '', 'it'));
+  if (mode === 'date-az') copy.sort((a, b) => {
+    const dateDiff = new Date(b.created_at) - new Date(a.created_at);
+    return dateDiff !== 0 ? dateDiff : (a.company || '').localeCompare(b.company || '', 'it');
+  });
+  return copy;
+}
+
+function renderSearchResults(jobs) {
+  _lastSearchResults = jobs;
+  const sortMode = document.getElementById('sortMode')?.value || 'date-az';
+  const sorted = sortJobs(jobs, sortMode);
+  const el = document.getElementById('searchResults');
+  if (!sorted.length) { el.innerHTML = '<p class="text-sm text-gray-400">Nessun risultato.</p>'; return; }
+  el.innerHTML = sorted.map(j => `
+    <div class="bg-white rounded-xl shadow-sm p-4 flex gap-4 items-start">
+      ${j.employer_logo ? `<img src="${j.employer_logo}" class="w-10 h-10 object-contain rounded flex-shrink-0" onerror="this.style.display='none'" />` : ''}
+      <div class="flex-1 min-w-0">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <h3 class="font-semibold text-sm">${escHtml(j.title)}</h3>
+            <p class="text-xs text-gray-500">${escHtml(j.company)} · ${j.location || ''} ${j.salary ? '· ' + j.salary : ''}</p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="text-xs text-gray-400">${fmtDate(j.created_at)}</span>
+            ${statusBadge(j.status)}
+          </div>
+        </div>
+        <p class="text-xs text-gray-400 mt-1 line-clamp-2">${escHtml((j.description || '').slice(0, 200))}...</p>
+        <div class="flex gap-3 mt-2">
+          ${j.source_url ? `<a href="${j.source_url}" target="_blank" class="text-xs text-indigo-600 hover:underline">Vedi offerta ↗</a>` : ''}
+          <button onclick="openJobDetail(${j.id})" class="text-xs text-gray-500 hover:text-gray-700">Dettagli</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// ===== MY JOBS =====
+async function loadJobs(status) {
+  const el = document.getElementById('jobsList');
+  el.innerHTML = '<p class="text-xs text-gray-400">Loading...</p>';
+  try {
+    const url = status ? `/api/jobs?status=${status}` : '/api/jobs';
+    const jobs = await api('GET', url);
+    renderJobList(jobs, el);
+  } catch (e) {
+    el.innerHTML = `<p class="text-xs text-red-500">${e.message}</p>`;
+  }
+}
+
+function renderJobList(jobs, container) {
+  if (!jobs.length) { container.innerHTML = '<p class="text-sm text-gray-400">No jobs here yet.</p>'; return; }
+  container.innerHTML = jobs.map(j => `
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <div class="flex items-start justify-between">
+        <div>
+          <h3 class="font-semibold text-sm">${j.title}</h3>
+          <p class="text-xs text-gray-500">${j.company} · ${j.location || ''}</p>
+        </div>
+        <div class="flex items-center gap-2">
+          ${statusBadge(j.status)}
+          <select onchange="updateStatus(${j.id}, this.value)" class="text-xs border rounded px-1 py-0.5">
+            ${['discovered','applied','contacted','reply','rejected'].map(s => `<option value="${s}" ${j.status===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-2">
+        <button onclick="switchToCV(${j.id})" class="text-xs text-indigo-600 hover:underline">Tailor CV</button>
+        <button onclick="switchToContacts(${j.id})" class="text-xs text-indigo-600 hover:underline">Find Contacts</button>
+        <button onclick="switchToMessages(${j.id})" class="text-xs text-indigo-600 hover:underline">Draft Message</button>
+        ${j.source_url ? `<a href="${j.source_url}" target="_blank" class="text-xs text-gray-400 hover:underline">Listing ↗</a>` : ''}
+        <button onclick="deleteJob(${j.id})" class="text-xs text-red-400 hover:underline ml-auto">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function updateStatus(jobId, status) {
+  try {
+    await api('PATCH', `/api/jobs/${jobId}/status`, { status });
+    toast('Status updated');
+  } catch (e) {
+    toast(e.message, false);
+  }
+}
+
+async function deleteJob(jobId) {
+  if (!confirm('Delete this job and all its data?')) return;
+  try {
+    await api('DELETE', `/api/jobs/${jobId}`);
+    loadJobs();
+    toast('Deleted');
+  } catch (e) {
+    toast(e.message, false);
+  }
+}
+
+// Quick-switch helpers from My Jobs
+function switchToCV(jobId) {
+  switchTab('cv');
+  setTimeout(() => { document.getElementById('cvJobSelect').value = jobId; }, 100);
+}
+function switchToContacts(jobId) {
+  switchTab('contacts');
+  setTimeout(() => { document.getElementById('contactJobSelect').value = jobId; }, 100);
+}
+function switchToMessages(jobId) {
+  switchTab('messages');
+  setTimeout(() => { document.getElementById('msgJobSelect').value = jobId; }, 100);
+}
+
+// ===== JOB DETAIL MODAL =====
+async function openJobDetail(jobId) {
+  try {
+    const j = await api('GET', `/api/jobs/${jobId}`);
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+      <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6">
+        <div class="flex justify-between items-start mb-3">
+          <div>
+            <h2 class="font-bold text-lg">${j.title}</h2>
+            <p class="text-sm text-gray-500">${j.company} · ${j.location || ''}</p>
+          </div>
+          <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600 text-xl">×</button>
+        </div>
+        <pre class="text-xs text-gray-600 leading-relaxed">${j.description || 'No description available.'}</pre>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  } catch (e) {
+    toast(e.message, false);
+  }
+}
+
+// ===== CV TAILORING =====
+async function loadJobsIntoSelect(selectId) {
+  try {
+    const jobs = await api('GET', '/api/jobs');
+    const sel = document.getElementById(selectId);
+    const current = sel.value;
+    sel.innerHTML = '<option value="">-- select a job --</option>' +
+      jobs.map(j => `<option value="${j.id}">${j.company} — ${j.title}</option>`).join('');
+    if (current) sel.value = current;
+  } catch (e) {}
+}
+
+async function generateCV() {
+  const jobId = document.getElementById('cvJobSelect').value;
+  if (!jobId) { toast('Seleziona prima un job', false); return; }
+  document.getElementById('cvSpinner').classList.remove('hidden');
+  try {
+    await api('POST', '/api/cv/generate', { job_id: parseInt(jobId) });
+    toast('CV generato!');
+    loadCVHistory(jobId);
+  } catch (e) {
+    toast(e.message, false);
+  } finally {
+    document.getElementById('cvSpinner').classList.add('hidden');
+  }
+}
+
+async function loadCVHistory(jobId) {
+  if (!jobId) { document.getElementById('cvResult').innerHTML = ''; return; }
+  try {
+    const versions = await api('GET', `/api/cv/job/${jobId}`);
+    renderCVHistory(versions, parseInt(jobId));
+  } catch (e) {}
+}
+
+function renderCVHistory(versions, jobId) {
+  const el = document.getElementById('cvResult');
+  if (!versions.length) { el.innerHTML = '<p class="text-sm text-gray-400">Nessun CV generato per questo job.</p>'; return; }
+  el.innerHTML = versions.map((cv, i) => `
+    <div class="bg-white rounded-xl shadow-sm p-5 mb-3">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <span class="font-semibold text-sm">Versione ${versions.length - i}</span>
+          <span class="text-xs text-gray-400 ml-2">${new Date(cv.created_at).toLocaleString('it-IT')}</span>
+          ${i === 0 ? '<span class="ml-2 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">ultima</span>' : ''}
+        </div>
+        <div class="flex gap-2">
+          <a href="/api/cv/${cv.id}/download" class="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700">↓ .docx</a>
+          <button onclick="toggleCVEdit(${cv.id})" class="text-xs border border-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-50">Modifica</button>
+          <button onclick="deleteCVVersion(${cv.id}, ${jobId})" class="text-xs text-red-400 hover:text-red-600 px-2">✕</button>
+        </div>
+      </div>
+      <!-- Vista testo -->
+      <pre id="cvText-${cv.id}" class="text-xs text-gray-600 leading-relaxed border rounded-lg p-3 bg-gray-50 max-h-64 overflow-y-auto">${escHtml(cv.content || '')}</pre>
+      <!-- Editor (nascosto) -->
+      <div id="cvEditor-${cv.id}" class="hidden mt-2">
+        <textarea id="cvTextarea-${cv.id}" class="w-full border rounded-lg p-3 text-xs font-mono leading-relaxed h-64 focus:outline-none focus:ring-2 focus:ring-indigo-300">${escHtml(cv.content || '')}</textarea>
+        <div class="flex gap-2 mt-2">
+          <button onclick="saveCVEdit(${cv.id}, ${jobId})" class="text-xs bg-green-600 text-white px-4 py-1.5 rounded-lg hover:bg-green-700">Salva come nuova versione</button>
+          <button onclick="toggleCVEdit(${cv.id})" class="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50">Annulla</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleCVEdit(cvId) {
+  document.getElementById(`cvText-${cvId}`).classList.toggle('hidden');
+  document.getElementById(`cvEditor-${cvId}`).classList.toggle('hidden');
+}
+
+async function saveCVEdit(cvId, jobId) {
+  const content = document.getElementById(`cvTextarea-${cvId}`).value.trim();
+  if (!content) { toast('Il contenuto non può essere vuoto', false); return; }
+  try {
+    await api('POST', '/api/cv/save', { job_id: jobId, content });
+    toast('Versione salvata');
+    loadCVHistory(jobId);
+  } catch (e) { toast(e.message, false); }
+}
+
+async function deleteCVVersion(cvId, jobId) {
+  if (!confirm('Eliminare questa versione?')) return;
+  try {
+    await api('DELETE', `/api/cv/${cvId}`);
+    loadCVHistory(jobId);
+    toast('Eliminata');
+  } catch (e) { toast(e.message, false); }
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ===== CONTACTS =====
+async function openGoogleSearch() {
+  const jobId = document.getElementById('contactJobSelect').value;
+  if (!jobId) { toast('Seleziona prima un job', false); return; }
+  try {
+    const data = await api('GET', `/api/contacts/search-urls/${jobId}`);
+    window.open(data.google_dork, '_blank');
+  } catch (e) {
+    toast(e.message, false);
+  }
+}
+
+async function findContacts(force = false) {
+  const jobId = document.getElementById('contactJobSelect').value;
+  if (!jobId) { toast('Seleziona prima un job', false); return; }
+  document.getElementById('contactSpinner').classList.remove('hidden');
+  if (force) document.getElementById('contactsList').innerHTML = '<p class="text-xs text-gray-400 animate-pulse">Ricerca in corso...</p>';
+  try {
+    const contacts = await api('POST', `/api/contacts/find/${jobId}?force=${force}`);
+    renderContacts(contacts, jobId);
+    toast(force ? `${contacts.length} contatti aggiornati` : `${contacts.length} contatti`);
+  } catch (e) {
+    document.getElementById('contactsList').innerHTML = '';
+    toast(e.message, false);
+  } finally {
+    document.getElementById('contactSpinner').classList.add('hidden');
+  }
+}
+
+async function loadContactsForJob(jobId) {
+  if (!jobId) { document.getElementById('contactsList').innerHTML = ''; return; }
+  try {
+    const contacts = await api('GET', `/api/contacts/job/${jobId}`);
+    renderContacts(contacts, jobId);
+  } catch (e) {}
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('contactJobSelect').addEventListener('change', e => {
+    loadContactsForJob(e.target.value);
+  });
+});
+
+function renderContacts(contacts, jobId) {
+  const el = document.getElementById('contactsList');
+  if (!contacts.length) { el.innerHTML = '<p class="text-sm text-gray-400">Nessun contatto trovato.</p>'; return; }
+  el.innerHTML = contacts.map(c => `
+    <div class="bg-white rounded-xl shadow-sm p-4 flex items-start justify-between gap-3">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <p class="font-semibold text-sm">${c.name || '—'}</p>
+          ${c.role ? `<span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${c.role}</span>` : ''}
+          ${c.contacted_at ? `<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Contattato ${c.contacted_at.split('T')[0]}</span>` : ''}
+        </div>
+        <div class="mt-0.5">
+          ${c.location
+            ? `<span class="text-xs font-medium text-indigo-600">&#128205; ${escHtml(c.location)}</span>`
+            : `<span class="text-xs text-gray-300 italic">posizione non disponibile</span>`
+          }
+        </div>
+        <div class="flex gap-3 mt-1 flex-wrap items-center">
+          ${c.linkedin_url ? `<a href="${c.linkedin_url}" target="_blank" class="text-xs text-indigo-600 hover:underline">LinkedIn ↗</a>` : ''}
+          ${c.email ? `<span class="text-xs text-gray-500">${c.email}</span>` : ''}
+          ${c.phone_number ? `<span class="text-xs text-gray-500">${c.phone_prefix || ''} ${c.phone_number}</span>` : ''}
+        </div>
+        ${c.message_sent ? `
+          <div class="mt-2 p-2 bg-gray-50 border rounded text-xs text-gray-600 italic">
+            <span class="font-medium not-italic text-gray-400 block mb-0.5">Messaggio inviato:</span>
+            ${c.message_sent}
+          </div>` : ''}
+        ${c.cv_version_id ? `<a href="/api/cv/${c.cv_version_id}/download" class="text-xs text-indigo-500 hover:underline mt-1 block">CV usato ↓ scarica</a>` : ''}
+        ${c.reply_received ? `<p class="text-xs text-blue-600 mt-1">Risposta: ${c.reply_received.slice(0, 100)}...</p>` : ''}
+      </div>
+      <div class="flex flex-col gap-1.5 items-end shrink-0">
+        ${c.name ? `<button onclick="switchToMsgWithContact(${jobId}, ${c.id}, '${c.name.replace(/'/g, "\\'")}')" class="text-xs text-indigo-600 hover:underline whitespace-nowrap">Draft msg</button>` : ''}
+        <button onclick="markContacted(${c.id}, ${jobId}, ${!!c.contacted_at})" class="text-xs whitespace-nowrap ${c.contacted_at ? 'text-green-600 hover:text-red-400' : 'text-gray-400 hover:text-green-600'}">${c.contacted_at ? '✓ Contattato' : 'Segna contattato'}</button>
+        <button onclick="deleteContact(${c.id}, ${jobId})" class="text-xs text-red-400 hover:underline">Elimina</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function showAddContact() {
+  document.getElementById('addContactForm').classList.toggle('hidden');
+}
+
+async function addContactManually() {
+  const jobId = document.getElementById('contactJobSelect').value;
+  if (!jobId) { toast('Seleziona prima un job', false); return; }
+  const name = document.getElementById('newContactName').value.trim();
+  const email = document.getElementById('newContactEmail').value.trim();
+  if (!name && !email) { toast('Inserisci almeno un nome o un\'email', false); return; }
+  try {
+    await api('POST', '/api/contacts', {
+      job_id: parseInt(jobId),
+      name: name || null,
+      role: document.getElementById('newContactRole').value.trim() || null,
+      email: email || null,
+      phone_prefix: document.getElementById('newContactPrefix').value.trim() || null,
+      phone_number: document.getElementById('newContactPhone').value.trim() || null,
+      linkedin_url: document.getElementById('newContactUrl').value.trim() || null,
+      location: document.getElementById('newContactLocation').value.trim() || null,
+    });
+    document.getElementById('addContactForm').classList.add('hidden');
+    ['newContactName','newContactRole','newContactEmail','newContactUrl','newContactPrefix','newContactPhone','newContactLocation'].forEach(id => document.getElementById(id).value = '');
+    loadContactsForJob(jobId);
+    toast('Contatto aggiunto');
+  } catch (e) {
+    toast(e.message, false);
+  }
+}
+
+async function markContacted(contactId, jobId, alreadyContacted) {
+  if (alreadyContacted) {
+    try {
+      await api('PATCH', `/api/contacts/${contactId}`, { contacted_at_clear: true });
+      toast('Rimosso');
+      loadContactsForJob(jobId);
+    } catch (e) { toast(e.message, false); }
+    return;
+  }
+
+  // Recupera ultimo CV e ultimo messaggio per questo job
+  const [cvVersions, messages] = await Promise.all([
+    api('GET', `/api/cv/job/${jobId}`).catch(() => []),
+    api('GET', `/api/messages/job/${jobId}`).catch(() => []),
+  ]);
+
+  const latestCv = cvVersions[0] || null;
+  const latestMsg = messages[0] || null;
+
+  try {
+    await api('PATCH', `/api/contacts/${contactId}`, {
+      contacted_at: new Date().toISOString(),
+      cv_version_id: latestCv ? latestCv.id : null,
+      message_sent: latestMsg ? latestMsg.content : null,
+    });
+    toast('Contattato — CV e messaggio registrati');
+    loadContactsForJob(jobId);
+  } catch (e) { toast(e.message, false); }
+}
+
+async function deleteContact(contactId, jobId) {
+  try {
+    await api('DELETE', `/api/contacts/${contactId}`);
+    loadContactsForJob(jobId);
+    toast('Deleted');
+  } catch (e) {
+    toast(e.message, false);
+  }
+}
+
+function switchToMsgWithContact(jobId, contactId, contactName) {
+  switchTab('messages');
+  setTimeout(() => {
+    document.getElementById('msgJobSelect').value = jobId;
+    loadMsgContacts().then(() => {
+      document.getElementById('msgContactSelect').value = contactId;
+    });
+    document.getElementById('msgContactName').value = contactName;
+  }, 150);
+}
+
+// ===== MESSAGES =====
+async function loadMsgContacts() {
+  const jobId = document.getElementById('msgJobSelect').value;
+  const sel = document.getElementById('msgContactSelect');
+  sel.innerHTML = '<option value="">-- no specific contact --</option>';
+  if (!jobId) return;
+  try {
+    const contacts = await api('GET', `/api/contacts/job/${jobId}`);
+    sel.innerHTML += contacts.map(c => `<option value="${c.id}">${c.name}${c.role ? ' · ' + c.role : ''}</option>`).join('');
+  } catch (e) {}
+}
+
+async function generateMessage() {
+  const jobId = document.getElementById('msgJobSelect').value;
+  if (!jobId) { toast('Seleziona prima un job', false); return; }
+  const contactId = document.getElementById('msgContactSelect').value;
+  const contactName = document.getElementById('msgContactName').value.trim();
+
+  document.getElementById('msgSpinner').classList.remove('hidden');
+  try {
+    await api('POST', '/api/messages/generate', {
+      job_id: parseInt(jobId),
+      contact_id: contactId ? parseInt(contactId) : null,
+      contact_name: contactName || null,
+    });
+    toast('Messaggio generato!');
+    loadMsgHistory(jobId);
+  } catch (e) {
+    toast(e.message, false);
+  } finally {
+    document.getElementById('msgSpinner').classList.add('hidden');
+  }
+}
+
+async function loadMsgHistory(jobId) {
+  if (!jobId) { document.getElementById('msgResult').innerHTML = ''; return; }
+  try {
+    const messages = await api('GET', `/api/messages/job/${jobId}`);
+    renderMsgHistory(messages, parseInt(jobId));
+  } catch (e) {}
+}
+
+function renderMsgHistory(messages, jobId) {
+  const el = document.getElementById('msgResult');
+  if (!messages.length) { el.innerHTML = '<p class="text-sm text-gray-400">Nessun messaggio generato per questo job.</p>'; return; }
+  el.innerHTML = messages.map((msg, i) => `
+    <div class="bg-white rounded-xl shadow-sm p-5 mb-3">
+      <div class="flex items-center justify-between mb-2">
+        <div>
+          <span class="font-semibold text-sm">Versione ${messages.length - i}</span>
+          <span class="text-xs text-gray-400 ml-2">${new Date(msg.created_at).toLocaleString('it-IT')}</span>
+          ${i === 0 ? '<span class="ml-2 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">ultima</span>' : ''}
+        </div>
+        <div class="flex gap-2">
+          <button onclick="copyMsgText(${msg.id})" class="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg">Copia</button>
+          <button onclick="toggleMsgEdit(${msg.id})" class="text-xs border border-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-50">Modifica</button>
+          <button onclick="deleteMsg(${msg.id}, ${jobId})" class="text-xs text-red-400 hover:text-red-600 px-2">✕</button>
+        </div>
+      </div>
+      <!-- Vista -->
+      <div id="msgView-${msg.id}" class="bg-gray-50 border rounded-lg p-3 text-sm leading-relaxed">${escHtml(msg.content)}</div>
+      <p class="text-xs text-gray-400 mt-1">${msg.content.length} chars · limite LinkedIn: 300</p>
+      <!-- Editor (nascosto) -->
+      <div id="msgEditor-${msg.id}" class="hidden mt-2">
+        <textarea id="msgTextarea-${msg.id}" class="w-full border rounded-lg p-3 text-sm leading-relaxed h-28 focus:outline-none focus:ring-2 focus:ring-indigo-300">${escHtml(msg.content)}</textarea>
+        <p id="msgCharCount-${msg.id}" class="text-xs text-gray-400 mt-1"></p>
+        <div class="flex gap-2 mt-2">
+          <button onclick="saveMsgEdit(${msg.id}, ${jobId})" class="text-xs bg-green-600 text-white px-4 py-1.5 rounded-lg hover:bg-green-700">Salva come nuova versione</button>
+          <button onclick="toggleMsgEdit(${msg.id})" class="text-xs border px-3 py-1.5 rounded-lg hover:bg-gray-50">Annulla</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  // aggancia contatori caratteri
+  messages.forEach(msg => {
+    const ta = document.getElementById(`msgTextarea-${msg.id}`);
+    const counter = document.getElementById(`msgCharCount-${msg.id}`);
+    if (ta && counter) {
+      const update = () => {
+        const n = ta.value.length;
+        counter.textContent = `${n} chars${n > 300 ? ' ⚠ supera il limite LinkedIn di 300' : ''}`;
+        counter.className = `text-xs mt-1 ${n > 300 ? 'text-red-500' : 'text-gray-400'}`;
+      };
+      ta.addEventListener('input', update);
+      update();
+    }
+  });
+}
+
+function toggleMsgEdit(msgId) {
+  document.getElementById(`msgView-${msgId}`).classList.toggle('hidden');
+  document.getElementById(`msgEditor-${msgId}`).classList.toggle('hidden');
+}
+
+async function saveMsgEdit(msgId, jobId) {
+  const content = document.getElementById(`msgTextarea-${msgId}`).value.trim();
+  if (!content) { toast('Il contenuto non può essere vuoto', false); return; }
+  const contactSel = document.getElementById('msgContactSelect');
+  const contactId = contactSel ? parseInt(contactSel.value) || null : null;
+  try {
+    await api('POST', '/api/messages/save', { job_id: jobId, content, contact_id: contactId });
+    toast('Versione salvata');
+    loadMsgHistory(jobId);
+  } catch (e) { toast(e.message, false); }
+}
+
+async function deleteMsg(msgId, jobId) {
+  if (!confirm('Eliminare questo messaggio?')) return;
+  try {
+    await api('DELETE', `/api/messages/${msgId}`);
+    loadMsgHistory(jobId);
+    toast('Eliminato');
+  } catch (e) { toast(e.message, false); }
+}
+
+function copyMsgText(msgId) {
+  const text = document.getElementById(`msgView-${msgId}`).textContent;
+  navigator.clipboard.writeText(text).then(() => toast('Copiato!'));
+}
+
+// ===== BASE CV =====
+async function loadBaseCV() {
+  try {
+    const data = await api('GET', '/api/cv/base');
+    document.getElementById('baseCvText').value = data.content || '';
+  } catch (e) {}
+}
+
+async function saveBaseCV() {
+  const content = document.getElementById('baseCvText').value.trim();
+  try {
+    await api('POST', '/api/cv/base', { content });
+    const el = document.getElementById('cvSaveMsg');
+    el.classList.remove('hidden');
+    setTimeout(() => el.classList.add('hidden'), 2000);
+    checkCVStatus();
+    toast('Base CV saved');
+  } catch (e) {
+    toast(e.message, false);
+  }
+}
+
+// ===== INIT =====
+checkCVStatus();
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('cvJobSelect').addEventListener('change', e => {
+    loadCVHistory(e.target.value);
+  });
+  document.getElementById('msgJobSelect').addEventListener('change', e => {
+    loadMsgContacts();
+    loadMsgHistory(e.target.value);
+  });
+});
+</script>
+</body>
+</html>
